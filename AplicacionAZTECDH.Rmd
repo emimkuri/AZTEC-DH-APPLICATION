@@ -42,14 +42,6 @@ goalkeepers_alyssa <- StatsBombData %>%
   filter(position.name == "Goalkeeper")
 goalkeepers_alyssa <- goalkeepers_alyssa[, colMeans(is.na(StatsBombData)) < 1]
 
-first_half <- data %>%
-  filter(period == 1)
-first_half <- first_half[, colMeans(is.na(data)) < 1]
-
-second_half <- data %>%
-  filter(period == 2)
-second_half <- second_half[, colMeans(is.na(data)) < 1]
-
 m15 <- data %>%
   filter(minute >= 0 & minute <= 15)
 m15 <- m15[, colMeans(is.na(data)) < 1]
