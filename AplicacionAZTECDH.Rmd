@@ -1,0 +1,479 @@
+---
+title: "AZTEC DH Application Practice"
+output: html_document
+date: "2024-03-12"
+---
+
+__By: Emiliano Martinez Kuri__
+
+__Recommendations:__
+Alyssa Naeher exhibits a traditional goalkeeper style, excelling in shot-stopping and securing the area beneath the goalposts. However, in modern football, goalkeepers are expected to contribute more actively to build-up play. Naeher's current approach lacks passing accuracy, decision-making, self-confidence, and passing strength. To address these areas, I recommend incorporating drills focused on improving long passing accuracy, as well as participating in play-making exercises to develop chemistry and communication with defenders and midfielders. Additionally, she should explore utilizing short, low passes to maintain possession more effectively. It's crucial for Naeher to consistently assess passing options, particularly targeting Casey Krueger and Vanessa DiBernardo, in the zones 10 and 12, while also being mindful of the potential risks of turnovers, especially in central areas and below the halfway line, to minimize counter-attack opportunities for opponents.
+
+_To get more insights about this look at the analysis and graphs below_
+
+
+```{r}
+devtools::install_github("statsbomb/SDMTools")
+devtools::install_github("statsbomb/StatsBombR")
+devtools::install_github("FCrSTATS/SBpitch")
+```
+
+```{r}
+library('StatsBombR')
+library(ggplot2)
+library(tidyverse)
+library(StatsBombR)
+library(SBpitch)
+Comp <- FreeCompetitions() %>% filter(competition_name == "NWSL") #2
+Matches <- FreeMatches(Comp) #3
+StatsBombData <- free_allevents(MatchesDF = Matches, Parallel = T) #4
+StatsBombData = allclean(StatsBombData)
+```
+
+```{r}
+data <- StatsBombData %>% filter(player.name == "Alyssa Michele Naeher")
+data <- data[, colMeans(is.na(data)) < 1]
+
+goalkeepers <- StatsBombData %>%
+  filter(position.name == "Goalkeeper" & player.name != "Alyssa Michele Naeher")
+goalkeepers <- goalkeepers[, colMeans(is.na(StatsBombData)) < 1]
+
+goalkeepers_alyssa <- StatsBombData %>%
+  filter(position.name == "Goalkeeper")
+goalkeepers_alyssa <- goalkeepers_alyssa[, colMeans(is.na(StatsBombData)) < 1]
+
+first_half <- data %>%
+  filter(period == 1)
+first_half <- first_half[, colMeans(is.na(data)) < 1]
+
+second_half <- data %>%
+  filter(period == 2)
+second_half <- second_half[, colMeans(is.na(data)) < 1]
+
+m15 <- data %>%
+  filter(minute >= 0 & minute <= 15)
+m15 <- m15[, colMeans(is.na(data)) < 1]
+
+m30 <- data %>%
+  filter(minute >= 16 & minute <= 30)
+m30 <- m30[, colMeans(is.na(data)) < 1]
+
+m45 <- data %>%
+  filter(minute >= 31 & minute <= 45)
+m45 <- m45[, colMeans(is.na(data)) < 1]
+
+m60 <- data %>%
+  filter(minute >= 46 & minute <= 60)
+m60 <- m60[, colMeans(is.na(data)) < 1]
+
+m75 <- data %>%
+  filter(minute >= 61 & minute <= 75)
+m75 <- m75[, colMeans(is.na(data)) < 1]
+
+m90 <- data %>%
+  filter(minute >= 76)
+m90 <- m90[, colMeans(is.na(data)) < 1]
+```
+
+__INTRODUCTION:__
+
+- Structure:
+   * Recommendations
+   * Importing of needed libraries and data
+   * Analysis on goalkeeping stats
+   * Analysis on passing stats
+   * Analysis on time dependent performance
+   * Appendix
+   
+- Data:
+   * Data on 2018 NWSL gathered by StatsBomb 
+   * Analysis contains event data on 6 different matches of Alyssa Naeher
+   * Analysis contains event data on 36 different matches of the rest of available goalkeepers in the league
+   * Limitations on pass accuracy metrics
+
+- Goals:
+   * Assess Alyssa Naeher's improvement areas
+   * Evaluate Alyssa Naeher's performance in different areas
+   * Examine Alyssa Naeher's biases
+   * Explore her performance throughout time frames
+
+
+# Insights on goalkeeping abilities
+```{r}
+# Positioning
+ggplot(subset(data, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.position.name)), 
+       aes(x = goalkeeper.outcome.name, fill = goalkeeper.position.name)) +
+  geom_bar(position = "stack") +
+  labs(title = "Goalkeeper Situational Positioning and Outcome",
+       x = "Play Outcome",
+       y = "Count of Plays") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10),
+        plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0),
+        strip.text = element_text(size = 10))
+positioning <- data %>%
+  filter(!is.na(goalkeeper.type.name))
+create_Pitch(padding = 5) +
+  geom_point(data = positioning, aes(x = location.x, y = location.y, color = goalkeeper.type.name), size = 1) + 
+  labs(title = "Goalkeeping Positioning",
+       x = "X Coordinate", y = "Y Coordinate",
+       color = "Goalkeeper Type") +
+  scale_color_manual(values = c("Goal Conceded" = "red", "Shot Faced" = "yellow", "Shot Saved" = "green", "Collected" = "blue", "Punch" = "orange", "Keeper Sweeper" = "purple"), name = "Goalkeeping Type") +
+  theme_minimal() +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5))
+
+```
+
+Given these graphs, we can assess her secureness below the three posts. She is not a sweeper keeper, but she can adapt when needed. Biggest insight is her good constant positioning, she doesn’t risk plays. She performs the job that a traditional goalkeeper should.
+
+
+```{r}
+# Shot-stopping technique
+ggplot(subset(data, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.technique.name)), 
+       aes(x = goalkeeper.outcome.name, fill = goalkeeper.technique.name)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Relationship between Goalkeeper Technique and Outcome",
+       x = "Play Outcome",
+       y = "Count") +
+  scale_fill_manual(values = c("Diving" = "blue", "Standing" = "green")) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10),
+        plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0),
+        strip.text = element_text(size = 10))
+ggplot(subset(data, !is.na(goalkeeper.type.name) & !is.na(goalkeeper.technique.name)), 
+       aes(x = goalkeeper.type.name, fill = goalkeeper.technique.name)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Relationship between Goalkeeper Technique and Outcome",
+       x = "Play Outcome",
+       y = "Count") +
+  scale_fill_manual(values = c("Diving" = "blue", "Standing" = "green")) + 
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 8),
+        axis.text.y = element_text(size = 8),
+        axis.title.x = element_text(size = 10),
+        axis.title.y = element_text(size = 10),
+        plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0),
+        strip.text = element_text(size = 10))
+```
+
+Reinforcing on her safety and traditional style of goalkeeping, we can see she doesn’t showboat for no reason . She has just made one mistake while diving and while standing there is a really big difference on the success of play. She concedes a goal every 2.80 shots while diving, which is a better proportion than the average of the NWSL (2.40 shots per goal). Also, one of her most amazing stats, the fact that she has only conceded 1 goal of the 12 shots received while standing. This is an amazingly big difference compared to the NWSL average ratio of 5.13 shots per goal. In general she has a slightly better ratio compared to the rest, allowing a goal every 4.16 shots while others do every 4.64 shots.
+
+
+```{r}
+# Body Resourcefulness
+ggplot(subset(data, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.body_part.name)), 
+       aes(x = goalkeeper.outcome.name, fill = goalkeeper.outcome.name)) +
+  geom_bar() +
+  facet_wrap(~ goalkeeper.body_part.name) +
+  labs(title = "Relationship between Goalkeeper Body Resources and Outcome",
+       x = "Play Outcome",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 30, hjust = 1, size = 8)) +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(axis.title.x = element_text(size = 10)) +
+  theme(axis.title.y = element_text(size = 10)) + 
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0)) +
+  theme(strip.text = element_text(size = 10)) +
+  scale_fill_manual(values = c("red", "blue","green","yellow","brown")) # Assigning random colors
+ggplot(subset(data, !is.na(goalkeeper.type.name) & !is.na(goalkeeper.body_part.name)), 
+       aes(x = goalkeeper.type.name, fill = goalkeeper.type.name)) +
+  geom_bar() +
+  facet_wrap(~ goalkeeper.body_part.name) +
+  labs(title = "Relationship between Goalkeeper Body Resources and Outcome",
+       x = "Play Outcome",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1, size = 8)) +
+  theme(axis.text.y = element_text(size = 8)) +
+  theme(axis.title.x = element_text(size = 10)) +
+  theme(axis.title.y = element_text(size = 10)) +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0)) +
+  theme(strip.text = element_text(size = 10))
+
+### MORE NUMBERS IN THE APPENDIX
+```
+
+Finally, we can see how in many of the shots she faces, she relies on the certainty of using both hands. Obviously related to the standing technique, there is a lack of use for the single hands and feet, especially the right hand which she doesn't use at all. Now, compared to the rest of goalkeepers we can see a pretty similar performance. The only main difference I’ve observed is the use of the chest by Alyssa Naeher.
+
+
+# Insights on the passing abilities
+```{r}
+# Average length by height of the pass
+ggplot() +
+  geom_bar(data = data %>% 
+             filter(pass.type.name != "Goal Kick") %>%
+              group_by(pass.height.name) %>%
+              summarise(avg_length = mean(pass.length, na.rm = TRUE)),
+           aes(x = pass.height.name, y = avg_length, fill = "Data"),
+           stat = "identity",
+           position = "stack") +
+  geom_bar(data = goalkeepers %>% 
+             filter(pass.type.name != "Goal Kick") %>%
+              group_by(pass.height.name) %>%
+              summarise(avg_length = mean(pass.length, na.rm = TRUE)),
+           aes(x = pass.height.name, y = avg_length, fill = "Goalkeepers"),
+           stat = "identity",
+           position = "stack") +
+  labs(title = "Average Length of Passes by Pass Height", subtitle = "*excluding goal kicks",
+       x = "Pass Height",
+       y = "Average Length") +
+  theme_minimal() +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5))
+```
+
+Even though, in general, she reaches a higher average length than the rest of the league, we can see that it's not really different from the rest. The only thing in which she excels is in the length of ground passes. Surpassing the average by more than 9 meters (31.85 mts to 22.23 mts).
+
+```{r}
+# In play passes map (Goal kicks not included)
+passes <- data %>%
+  filter(type.name == "Pass" & pass.type.name != "Goal Kick")
+create_Pitch(JdeP = T) +
+  geom_segment(data = passes, aes(x = location.x, y = location.y,
+                                  xend = pass.end_location.x, yend = pass.end_location.y,
+                                  colour = ifelse(pass.outcome.name == "Incomplete", "red", "#000000"),
+                                  linetype = pass.body_part.name), 
+               lineend = "round", size = 0.5,
+               arrow = arrow(length = unit(0.07, "inches"), ends = "last", type = "open")) +
+  labs(title = "Alyssa Naeher Passes", subtitle = "NWSL, 2018",
+       colour = "Outcome", linetype = "Feet") +
+  scale_colour_manual(values = c("Incomplete" = "red", "Other" = "black"),
+                      name = "Outcome", labels = c("Incomplete" = "Incomplete", "Other" = "Other")) +
+  scale_linetype_manual(values = c("Left Foot" = "dashed", "Right Foot" = "solid"),
+                        name = "Feet", labels = c("Left Foot" = "Left Foot", "Right Foot" = "Right Foot")) +
+  scale_y_reverse() +
+  coord_fixed(ratio = 105/100) +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5)) +
+  scale_colour_identity()
+
+```
+
+When talking about in-play passes, we don’t see much participation from her side. Less participation than many others from the NWSL. Also noticeable to see the amount of misplaced passes. The vast majority are either incomplete or thrown out directly. She is not precise. Usually once she participates in build-up play, the play comes to an end. The direction distribution is pretty varied but there is a tendency for her to prefer passes into zone 14 and its vicinity. All of them misplaced, but at least that could be considered a danger-less zone to lose the ball in.
+
+```{r}
+# Completion of in play passes by its height map
+passes <- data %>%
+  filter(type.name == "Pass" & pass.type.name != "Goal Kick")
+create_Pitch(JdeP = T) +
+  geom_segment(data = passes, aes(x = location.x, y = location.y,
+                        xend = pass.end_location.x, yend = pass.end_location.y,
+                        color = pass.height.name, linetype = pass.outcome.name)) +
+  geom_segment(arrow = arrow(length = unit(0.07, "inches"), ends = "last", type = "open")) +
+  scale_color_manual(values = c("Ground Pass" = "yellow", "Low Pass" = "green", "High Pass" = "black")) + # Customize color scale
+  labs(title = "Passes by Height",
+       x = "X Coordinate", y = "Y Coordinate",
+       color = "Pass Height", linetype = "Pass Outcome") +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5)) +
+  theme_minimal()
+```
+
+Now going into the height of the passes we can reconfirm her lack of confidence and develop in her play making abilities. Mostly high passes and just one single ground pass, which was actually thrown out. Here, as in the past map, we have a limitation. The data set didn’t provide any data on completed passes, it only gave incomplete and out outcomes of passing as acceptable results. Sadly we can’t see the completed passes to compare with the misplaced, but still, her distribution is not something even decent. If we focus on the length of the passes we can gain some interesting reinforcements. She has given 10 short passes but outcome is unknown and she has given 169 long passes with 51.48% of these misplaced, the rest are unknown.
+
+```{r}
+# Goal Kicks map
+passes <- data %>%
+  filter(type.name == "Pass" & pass.type.name == "Goal Kick")
+create_Pitch(JdeP = T) +
+  geom_segment(data = passes, aes(x = location.x, y = location.y,
+                                  xend = pass.end_location.x, yend = pass.end_location.y,
+                                  colour = ifelse(pass.outcome.name == "Incomplete", "red", "#000000"),
+                                  linetype = pass.body_part.name), 
+               lineend = "round", size = 0.5,
+               arrow = arrow(length = unit(0.07, "inches"), ends = "last", type = "open")) +
+  labs(title = "Alyssa Naeher Goal Kicks", subtitle = "NWSL, 2018",
+       colour = "Outcome", linetype = "Feet") +
+  scale_colour_manual(values = c("Incomplete" = "red", "Other" = "black"),
+                      name = "Outcome", labels = c("Incomplete" = "Incomplete", "Other" = "Other")) +
+  scale_linetype_manual(values = c("Left Foot" = "dashed", "Right Foot" = "solid"),
+                        name = "Feet", labels = c("Left Foot" = "Left Foot", "Right Foot" = "Right Foot")) +
+  scale_y_reverse() +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5)) +
+  coord_fixed(ratio = 105/100) +
+  scale_colour_identity()
+passes <- goalkeepers %>%
+  filter(type.name == "Pass" & pass.type.name == "Goal Kick")
+create_Pitch(JdeP = T) +
+  geom_segment(data = passes, aes(x = location.x, y = location.y,
+                                  xend = pass.end_location.x, yend = pass.end_location.y,
+                                  colour = ifelse(pass.outcome.name == "Incomplete", "red", "#000000"),
+                                  linetype = pass.body_part.name), 
+               lineend = "round", size = 0.5,
+               arrow = arrow(length = unit(0.07, "inches"), ends = "last", type = "open")) +
+  labs(title = "Rest of the League Goal Kicks", subtitle = "NWSL, 2018",
+       colour = "Outcome", linetype = "Feet") +
+  scale_colour_manual(values = c("Incomplete" = "red", "Other" = "black"),
+                      name = "Outcome", labels = c("Incomplete" = "Incomplete", "Other" = "Other")) +
+  scale_linetype_manual(values = c("Left Foot" = "dashed", "Right Foot" = "solid"),
+                        name = "Feet", labels = c("Left Foot" = "Left Foot", "Right Foot" = "Right Foot")) +
+  scale_y_reverse() +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5)) +
+  coord_fixed(ratio = 105/100) +
+  scale_colour_identity()
+```
+
+In order for a team to build-up nice and organized attacks, everything since the beginning must be organized. In Naeher’s case, she doesn't accomplish this. We can see how the absolute majority of goal kicks are directed to the second third of the pitch, but there is absolutely no precision. Just 8.7% of the goal kicks that exceed the half line, reach a teammate. Basically with Alyssa, a goal kick means a lost possession. There is no desire for her to play short, to her fullbacks or any player located in zones 4 and 6. Also, when comparing to the rest of the league we can see that the distribution is not the same. She sticks too much to the right side between zone 8 and 9. So concluding with her goal kick performance, she adds no value to organized build up, she doesn't reach that long distances, as seen in the rivals map and the average lengths bar plot, she has no resources and the risk to lose the ball in the zones she kicks the ball to is too big to maintain.
+
+```{r}
+# Favorite pass receivers
+exgk <- data %>% filter(pass.type.name != "Goal Kicks")
+ggplot(data = subset(exgk, !is.na(pass.recipient.name)), aes(x = reorder(pass.recipient.name, -table(pass.recipient.name)[pass.recipient.name]))) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Pass Recipients", subtitle = "Excluding Goal Kicks",
+       x = "Teammate",
+       y = "Passes Directed") +
+  coord_flip() + 
+  theme_minimal() +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 10))
+exgk <- data %>% filter(pass.type.name == "Goal Kicks")
+ggplot(data = subset(data, !is.na(pass.recipient.name)), aes(x = reorder(pass.recipient.name, -table(pass.recipient.name)[pass.recipient.name]))) +
+  geom_bar(fill = "skyblue") +
+  labs(title = "Goal Kick Recipients",
+       x = "Teammate",
+       y = "Passes Directed") +
+  coord_flip() + 
+  theme_minimal() +
+  theme(plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5),
+        axis.text.x = element_text(size = 8),
+        axis.title.x = element_text(size = 10))
+
+# MORE NUMBERS IN THE APPENDIX
+```
+
+Finally, we can see that she clearly has a favoritism for the passing destination, either if it is in-play or a goal kick. The three most common recipients are all attackers, which reinforces previous analysis. It's a fact that she jumps two lines when passing the ball. There is either no interest, no confidence or no ability for her to reach her defenders or the holding midfielder. 
+
+
+# Analysis by time frame
+## 15 minute splits
+```{r}
+combined_data <- rbind(
+  transform(m15, dataset = "0-15 Minutes"),
+  transform(m30, dataset = "16-30 Minutes"),
+  transform(m45, dataset = "31-45 Minutes"),
+  transform(m60, dataset = "46-60 Minutes"),
+  transform(m75, dataset = "61-75 Minutes"),
+  transform(m90, dataset = "76-90+ Minutes")
+)
+
+combined_data <- combined_data[!is.na(combined_data$pass.outcome.name), ]
+ggplot(combined_data, aes(x = pass.outcome.name, fill = dataset)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Comparison of Passing Outcomes Across Time Frames",
+       x = "Pass Outcome",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)
+        ,plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0))
+
+combined_data <- combined_data[!is.na(combined_data$type.name), ]
+ggplot(combined_data, aes(x = type.name, fill = dataset)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Passing Participation per Time Frame",
+       x = "",
+       y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 0, hjust = 1)
+        ,plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5))
+
+combined_data <- combined_data[!is.na(combined_data$pass.length), ]
+avg_lengths <- aggregate(pass.length ~ dataset, data = combined_data, FUN = mean)
+ggplot(avg_lengths, aes(x = dataset, y = pass.length, fill = dataset)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(title = "Average Length of Passes per Time Frame",
+       x = "Time Frame",
+       y = "Average Length") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)
+        ,plot.title = element_text(color = "black", size = 14, face = "bold", hjust = 0.5))
+
+# MORE NUMBERS IN THE APPENDIX
+```
+
+The last part of the analysis. Time dependent performance. We can see that there is a clear increase in passing participation from her side in the last 15 minutes. There is a difference of more than 10 participants to the average of the first 75 minutes of the game. We could see this as a decent thing but the outcome bar graph tells us otherwise. She doubles her incompletions in the last minutes, not even the out outcomes. This means giving more opportunities in the closing minutes to the rival. It can be either the nerves, high pressing or other factors but the fact is that she gifts the ball to the rivals in key moments, while also not even increasing the length of the pass. So increase in incompletions with a steady distance of pass, really bad.
+For the goalkeeping dependency on timing situation, there is absolute no relation between these two. Her goalkeeping performances maintain the tendency throughout all game.
+
+
+
+# Appendix
+```{r}
+### GOAL KICKS MAP ###
+# Average length of goal kicks (Alyssa Naeher)
+avg_pass_length <- data %>%
+  filter(pass.type.name == 'Goal Kick' & !is.na(pass.length)) %>%
+  summarise(avg_pass_length = mean(pass.length))
+print(avg_pass_length)
+# Average length of goal kicks (Rest of the league)
+avg_pass_length <- goalkeepers %>%
+  filter(pass.type.name == 'Goal Kick' & !is.na(pass.length)) %>%
+  summarise(avg_pass_length = mean(pass.length))
+print(avg_pass_length)
+
+### LENGTH BY HEIGHT BAR ###
+# Average length of passes by height (Alyssa Naeher) ***excludes goal kicks
+avg_pass_length_alyssa <- data %>%
+  filter(pass.type.name != 'Goal Kick' & !is.na(pass.length)) %>%
+  group_by(pass.height.name) %>%
+  summarise(avg_pass_length = mean(pass.length, na.rm = TRUE))
+print(avg_pass_length_alyssa)
+# Average length of passes by height (Rest of the league) ***excludes goal kicks
+avg_pass_length_league <- goalkeepers %>%
+  filter(pass.type.name != 'Goal Kick' & !is.na(pass.length)) %>%
+  group_by(pass.height.name) %>%
+  summarise(avg_pass_length = mean(pass.length, na.rm = TRUE))
+print(avg_pass_length_league)
+
+### SHOT STOPPING TECHNIQUES ###
+# Play outcome by goalkeeping technique (Alyssa Naeher)
+table(data$goalkeeper.outcome.name, data$goalkeeper.technique.name)
+table(data$goalkeeper.type.name, data$goalkeeper.technique.name)
+# Play outcome by goalkeeping technique (Rest of the league)
+table(goalkeepers$goalkeeper.outcome.name, goalkeepers$goalkeeper.technique.name)
+table(goalkeepers$goalkeeper.type.name, goalkeepers$goalkeeper.technique.name)
+
+
+### RESOURCEFULNESS ###
+# Outcome of the play by part of body used to stop shots (Alyssa Naeher)
+subset1 <- subset(data, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.body_part.name))
+table(subset1$goalkeeper.outcome.name, subset1$goalkeeper.body_part.name)
+subset2 <- subset(data, !is.na(goalkeeper.type.name) & !is.na(goalkeeper.body_part.name))
+table(subset2$goalkeeper.type.name, subset2$goalkeeper.body_part.name)
+# Outcome of the play by part of body used to stop shots (Rest of the league)
+subset1 <- subset(goalkeepers, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.body_part.name))
+table(subset1$goalkeeper.outcome.name, subset1$goalkeeper.body_part.name)
+subset2 <- subset(goalkeepers, !is.na(goalkeeper.type.name) & !is.na(goalkeeper.body_part.name))
+table(subset2$goalkeeper.type.name, subset2$goalkeeper.body_part.name)
+## SAME TABLE FOR RESOURCEFULNESS BUT IN PERCENTAGES ##
+# Outcome of the play by part of body used to stop shots (Alyssa Naeher)
+subset1 <- subset(data, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.body_part.name))
+table1 <- table(subset1$goalkeeper.outcome.name, subset1$goalkeeper.body_part.name)
+print(round(prop.table(table1) * 100, 2))
+subset2 <- subset(data, !is.na(goalkeeper.type.name) & !is.na(goalkeeper.body_part.name))
+table2 <- table(subset2$goalkeeper.type.name, subset2$goalkeeper.body_part.name)
+print(round(prop.table(table2) * 100, 2))
+# Outcome of the play by part of body used to stop shots (Rest of the league)
+subset1 <- subset(goalkeepers, !is.na(goalkeeper.outcome.name) & !is.na(goalkeeper.body_part.name))
+table3 <- table(subset1$goalkeeper.outcome.name, subset1$goalkeeper.body_part.name)
+print(round(prop.table(table3) * 100, 2))
+subset2 <- subset(goalkeepers, !is.na(goalkeeper.type.name) & !is.na(goalkeeper.body_part.name))
+table4 <- table(subset2$goalkeeper.type.name, subset2$goalkeeper.body_part.name)
+print(round(prop.table(table4) * 100, 2))
+
+### PASS COMPLETION PER LENGTH OF PASS ###
+passu15 <- data %>% filter(pass.length <= 15)
+table(passu15$pass.outcome.name)
+passu35 <- data %>% filter(pass.length > 15 & pass.length <= 35)
+table(passu35$pass.outcome.name)
+passo35 <- data %>% filter(pass.length > 35)
+table(passo35$pass.outcome.name)
+
+### PREFERRED RECIPIENTS ###
+table(data$pass.recipient.name)
+
+```
